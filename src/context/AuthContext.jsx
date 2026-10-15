@@ -84,17 +84,38 @@ export function AuthProvider({ children }) {
       return { success: false, message: 'Nama pengguna atau kata sandi tidak sesuai.' }
     }
 
-    const session = {
-      id: account.id,
-      username: account.username,
-      name: account.nama,
-      role: account.role,
-      siswaId: account.siswaId ?? null,
-      guruId: account.guruId ?? null,
-    }
+    const session = createSession(account)
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))
     setUser(session)
     return { success: true, user: session }
+  }, [])
+
+  const loginStudent = useCallback(async (identifier, password) => {
+    const normalizedIdentifier = identifier.trim()
+    if (!normalizedIdentifier || !password) {
+      return { success: false, message: 'NISN/nomor peserta dan kata sandi wajib diisi.' }
+    }
+
+    const student = await db.siswa.where('nisn').equals(normalizedIdentifier).first()
+      ?? await db.siswa.where('nomorPeserta').equals(normalizedIdentifier).first()
+    if (!student || !student.aktif) {
+      return { success: false, message: 'NISN/nomor peserta atau kata sandi tidak sesuai.' }
+    }
+
+    const account = await db.users.where('siswaId').equals(student.id).first()
+    if (!account || !account.aktif || account.role !== 'siswa') {
+      return { success: false, message: 'Akun siswa belum diaktifkan. Hubungi administrator sekolah.' }
+    }
+
+    const validPassword = await verifyPassword(password, account.passwordHash)
+    if (!validPassword) {
+      return { success: false, message: 'NISN/nomor peserta atau kata sandi tidak sesuai.' }
+    }
+
+    const session = createSession(account)
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+    setUser(session)
+    return { success: true, user: session, student }
   }, [])
 
   const logout = useCallback(() => {
@@ -102,7 +123,21 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
-  const value = useMemo(() => ({ user, isLoading, login, logout }), [user, isLoading, login, logout])
+  const value = useMemo(
+    () => ({ user, isLoading, login, loginStudent, logout }),
+    [user, isLoading, login, loginStudent, logout],
+  )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+function createSession(account) {
+  return {
+    id: account.id,
+    username: account.username,
+    name: account.nama,
+    role: account.role,
+    siswaId: account.siswaId ?? null,
+    guruId: account.guruId ?? null,
+  }
 }

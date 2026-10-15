@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { GraduationCap, LockKeyhole, UserRound } from 'lucide-react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.js'
 
 const roleRoutes = { admin: '/admin', guru: '/guru', siswa: '/siswa' }
@@ -125,6 +125,12 @@ export default function LoginPage() {
               Akun contoh: <strong>admin</strong> / <strong>admin123</strong>. Guru: <strong>guru1</strong> atau{' '}
               <strong>guru2</strong> / <strong>guru123</strong>.
             </div>
+            <p className="mt-5 text-center text-sm text-slate-600">
+              Peserta ujian?{' '}
+              <Link to="/siswa/login" className="font-semibold text-blue-800 hover:text-blue-950">
+                Login siswa
+              </Link>
+            </p>
           </div>
           <p className="mt-5 text-center text-xs text-slate-500">RuangUjian CBT · Aplikasi ujian lokal sekolah</p>
         </div>

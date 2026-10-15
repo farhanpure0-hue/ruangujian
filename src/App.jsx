@@ -8,6 +8,7 @@ import { useAuth } from './hooks/useAuth.js'
 import AdminLayout from './layouts/AdminLayout.jsx'
 import { ensureDefaultClasses } from './db/defaultClasses.js'
 import LoginPage from './pages/LoginPage.jsx'
+import StudentLoginPage from './pages/StudentLoginPage.jsx'
 import QuestionBankPage from './pages/admin/QuestionBankPage.jsx'
 import { seedDatabase } from './db/seed.js'
 
@@ -20,6 +21,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/siswa/login" element={<StudentLoginPage />} />
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<WorkspaceHome />} />

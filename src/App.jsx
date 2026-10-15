@@ -7,6 +7,7 @@ import { AuthProvider } from './context/AuthContext.jsx'
 import { useAuth } from './hooks/useAuth.js'
 import AdminLayout from './layouts/AdminLayout.jsx'
 import { ensureDefaultClasses } from './db/defaultClasses.js'
+import { ensureDefaultSubjects } from './db/defaultSubjects.js'
 import LoginPage from './pages/LoginPage.jsx'
 import StudentLoginPage from './pages/StudentLoginPage.jsx'
 import OperationsPage from './pages/admin/OperationsPage.jsx'
@@ -60,6 +61,7 @@ export default function App() {
   useEffect(() => {
     let active = true
     seedDatabase()
+      .then(() => ensureDefaultSubjects())
       .then(() => ensureDefaultClasses())
       .then(() => {
         if (active) setStartup('ready')

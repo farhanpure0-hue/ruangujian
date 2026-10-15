@@ -126,6 +126,9 @@ export default function OperationsPage() {
   const sectionInfo = SECTIONS[section]
 
   if (!sectionInfo) return <p className="rounded-xl bg-white p-6 text-slate-700">Menu tidak ditemukan.</p>
+  if (user.role === 'pengawas' && !['dasbor', 'monitoring'].includes(section)) {
+    return <p className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-amber-900" role="alert">Akun pengawas hanya memiliki akses baca ke dasbor dan monitoring.</p>
+  }
   if (sectionInfo.adminOnly && user.role !== 'admin') {
     return <p className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-amber-900" role="alert">Menu ini hanya dapat digunakan administrator.</p>
   }
@@ -407,7 +410,7 @@ export default function OperationsPage() {
 
       {section === 'manajemen-peran' && (
         <Table headers={['Pengguna', 'Nama', 'Peran', 'Status']}>
-          {data.users.map((account) => <tr key={account.id}><td className="px-4 py-3 font-mono">{account.username}</td><td className="px-4 py-3">{account.nama}</td><td className="px-4 py-3"><select aria-label={`Peran ${account.username}`} disabled={account.id === user.id} className="rounded-lg border border-slate-300 px-2 py-1.5" value={account.role} onChange={(event) => changeUser(account.id, { role: event.target.value })}><option value="admin">Admin</option><option value="guru">Guru</option><option value="siswa">Siswa</option></select></td><td className="px-4 py-3"><label className="inline-flex items-center gap-2"><input type="checkbox" checked={Boolean(account.aktif)} disabled={account.id === user.id} onChange={(event) => changeUser(account.id, { aktif: event.target.checked })} className="h-4 w-4 accent-blue-700" />{account.aktif ? 'Aktif' : 'Nonaktif'}</label></td></tr>)}
+          {data.users.map((account) => <tr key={account.id}><td className="px-4 py-3 font-mono">{account.username}</td><td className="px-4 py-3">{account.nama}</td><td className="px-4 py-3"><select aria-label={`Peran ${account.username}`} disabled={account.id === user.id} className="rounded-lg border border-slate-300 px-2 py-1.5" value={account.role} onChange={(event) => changeUser(account.id, { role: event.target.value })}><option value="admin">Admin</option><option value="guru">Guru</option><option value="pengawas">Pengawas</option><option value="siswa">Siswa</option></select></td><td className="px-4 py-3"><label className="inline-flex items-center gap-2"><input type="checkbox" checked={Boolean(account.aktif)} disabled={account.id === user.id} onChange={(event) => changeUser(account.id, { aktif: event.target.checked })} className="h-4 w-4 accent-blue-700" />{account.aktif ? 'Aktif' : 'Nonaktif'}</label></td></tr>)}
         </Table>
       )}
 

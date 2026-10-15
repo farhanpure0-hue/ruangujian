@@ -3,16 +3,19 @@ import { useAuth } from '../hooks/useAuth.js'
 
 export default function WorkspaceHome() {
   const { user } = useAuth()
-  const role = user.role === 'admin' ? 'Administrator' : 'Guru'
+  const role = { admin: 'Administrator', guru: 'Guru', pengawas: 'Pengawas' }[user.role] ?? 'Pengguna'
+  const description = user.role === 'admin'
+    ? 'Kelola data dasar sekolah, pengguna, persiapan ujian, dan laporan dari perangkat ini.'
+    : user.role === 'pengawas'
+      ? 'Pantau status dan aktivitas peserta ujian yang berlangsung pada perangkat ini.'
+      : 'Kelola bank soal mata pelajaran dan pantau hasil peserta didik.'
 
   return (
     <section className="rounded-2xl bg-white p-7 shadow-sm ring-1 ring-slate-200 sm:p-10">
       <p className="text-sm font-semibold text-blue-800">Beranda {role}</p>
       <h1 className="mt-2 text-3xl font-bold tracking-tight text-navy-950">Halo, {user.name}</h1>
       <p className="mt-3 max-w-2xl leading-7 text-slate-600">
-        {user.role === 'admin'
-          ? 'Kelola persiapan ujian dan data sekolah dari perangkat ini.'
-          : 'Kelola bank soal mata pelajaran dan pantau hasil peserta didik.'}
+        {description}
       </p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         <article className="rounded-xl border border-slate-200 p-5">

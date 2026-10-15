@@ -8,6 +8,7 @@ import {
   Home,
   KeyRound,
   LogOut,
+  Settings,
   Settings2,
   ShieldCheck,
   UsersRound,
@@ -16,6 +17,14 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.js'
 
 const navigationGroups = [
+  {
+    label: 'Administrasi & pengguna',
+    icon: UsersRound,
+    adminOnly: true,
+    items: [
+      { section: 'data-master', label: 'Data master', icon: Settings },
+    ],
+  },
   {
     label: 'Pengaturan & penjadwalan ujian',
     icon: CalendarClock,
@@ -51,7 +60,17 @@ const navigationGroups = [
 export default function AdminLayout() {
   const { user, logout } = useAuth()
   const basePath = `/${user.role}`
-  const roleLabel = user.role === 'admin' ? 'Administrator' : 'Guru'
+  const roleLabel = { admin: 'Administrator', guru: 'Guru', pengawas: 'Pengawas' }[user.role] ?? 'Pengguna'
+  const canManageWorkspace = user.role === 'admin' || user.role === 'guru'
+  const visibleGroups = navigationGroups
+    .filter((group) => !group.adminOnly || user.role === 'admin')
+    .map((group) => ({
+      ...group,
+      items: user.role === 'pengawas'
+        ? group.items.filter(({ section }) => ['dasbor', 'monitoring'].includes(section))
+        : group.items,
+    }))
+    .filter((group) => group.items.length)
 
   function linkClass(isActive, compact = false) {
     return `flex shrink-0 items-center gap-2.5 rounded-lg px-3 ${compact ? 'py-2 text-xs' : 'py-2.5 text-sm'} font-medium transition ${
@@ -77,10 +96,12 @@ export default function AdminLayout() {
           <NavLink to={basePath} end className={({ isActive }) => linkClass(isActive)}>
             <Home size={17} aria-hidden="true" />Ringkasan
           </NavLink>
-          <NavLink to={`${basePath}/bank-soal`} className={({ isActive }) => linkClass(isActive)}>
-            <Boxes size={17} aria-hidden="true" />Bank Soal
-          </NavLink>
-          {navigationGroups.filter((group) => !group.adminOnly || user.role === 'admin').map((group) => (
+          {canManageWorkspace && (
+            <NavLink to={`${basePath}/bank-soal`} className={({ isActive }) => linkClass(isActive)}>
+              <Boxes size={17} aria-hidden="true" />Bank Soal
+            </NavLink>
+          )}
+          {visibleGroups.map((group) => (
             <div key={group.label} className="min-w-0">
               <p className="flex items-start gap-2 px-3 pb-1 pt-3 text-[10px] font-bold uppercase leading-4 tracking-wider text-slate-400">
                 <group.icon className="mt-0.5 shrink-0" size={13} aria-hidden="true" />
@@ -89,7 +110,7 @@ export default function AdminLayout() {
               {group.items.map(({ section, label, icon: Icon }) => (
                 <NavLink
                   key={section}
-                  to={`${basePath}/operasional/${section}`}
+                  to={section === 'data-master' ? `${basePath}/data-master` : `${basePath}/operasional/${section}`}
                   className={({ isActive }) => linkClass(isActive, true)}
                 >
                   <Icon size={15} aria-hidden="true" />

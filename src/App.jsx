@@ -10,6 +10,7 @@ import { ensureDefaultClasses } from './db/defaultClasses.js'
 import LoginPage from './pages/LoginPage.jsx'
 import StudentLoginPage from './pages/StudentLoginPage.jsx'
 import OperationsPage from './pages/admin/OperationsPage.jsx'
+import MasterDataPage from './pages/admin/MasterDataPage.jsx'
 import QuestionBankPage from './pages/admin/QuestionBankPage.jsx'
 import { seedDatabase } from './db/seed.js'
 
@@ -26,6 +27,7 @@ function AppRoutes() {
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<WorkspaceHome />} />
+          <Route path="data-master" element={<MasterDataPage />} />
           <Route path="bank-soal" element={<QuestionBankPage />} />
           <Route path="operasional/:section" element={<OperationsPage />} />
         </Route>
@@ -34,6 +36,12 @@ function AppRoutes() {
         <Route path="/guru" element={<AdminLayout />}>
           <Route index element={<WorkspaceHome />} />
           <Route path="bank-soal" element={<QuestionBankPage />} />
+          <Route path="operasional/:section" element={<OperationsPage />} />
+        </Route>
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={['pengawas']} />}>
+        <Route path="/pengawas" element={<AdminLayout />}>
+          <Route index element={<WorkspaceHome />} />
           <Route path="operasional/:section" element={<OperationsPage />} />
         </Route>
       </Route>

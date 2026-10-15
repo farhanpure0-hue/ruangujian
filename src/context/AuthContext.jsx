@@ -15,7 +15,7 @@ function readStoredSession() {
       session
       && Number.isInteger(session.id)
       && typeof session.username === 'string'
-      && ['admin', 'guru', 'siswa'].includes(session.role)
+      && ['admin', 'guru', 'pengawas', 'siswa'].includes(session.role)
     ) {
       return session
     }

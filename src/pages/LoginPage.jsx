@@ -3,7 +3,7 @@ import { GraduationCap, LockKeyhole, UserRound } from 'lucide-react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.js'
 
-const roleRoutes = { admin: '/admin', guru: '/guru', siswa: '/siswa' }
+const roleRoutes = { admin: '/admin', guru: '/guru', pengawas: '/pengawas', siswa: '/siswa' }
 
 export default function LoginPage() {
   const { user, isLoading, login } = useAuth()

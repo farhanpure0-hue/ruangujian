@@ -6,6 +6,7 @@ import WorkspaceHome from './components/WorkspaceHome.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { useAuth } from './hooks/useAuth.js'
 import AdminLayout from './layouts/AdminLayout.jsx'
+import { ensureDefaultClasses } from './db/defaultClasses.js'
 import LoginPage from './pages/LoginPage.jsx'
 import QuestionBankPage from './pages/admin/QuestionBankPage.jsx'
 import { seedDatabase } from './db/seed.js'
@@ -46,6 +47,7 @@ export default function App() {
   useEffect(() => {
     let active = true
     seedDatabase()
+      .then(() => ensureDefaultClasses())
       .then(() => {
         if (active) setStartup('ready')
       })

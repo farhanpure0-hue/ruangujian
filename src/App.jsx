@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from './components/ProtectedRoute.jsx'
 import RoleHome from './components/RoleHome.jsx'
+import WorkspaceHome from './components/WorkspaceHome.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { useAuth } from './hooks/useAuth.js'
+import AdminLayout from './layouts/AdminLayout.jsx'
 import LoginPage from './pages/LoginPage.jsx'
+import QuestionBankPage from './pages/admin/QuestionBankPage.jsx'
 import { seedDatabase } from './db/seed.js'
 
 function RoleRedirect() {
@@ -17,10 +20,16 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-        <Route path="/admin/*" element={<RoleHome />} />
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<WorkspaceHome />} />
+          <Route path="bank-soal" element={<QuestionBankPage />} />
+        </Route>
       </Route>
       <Route element={<ProtectedRoute allowedRoles={['guru']} />}>
-        <Route path="/guru/*" element={<RoleHome />} />
+        <Route path="/guru" element={<AdminLayout />}>
+          <Route index element={<WorkspaceHome />} />
+          <Route path="bank-soal" element={<QuestionBankPage />} />
+        </Route>
       </Route>
       <Route element={<ProtectedRoute allowedRoles={['siswa']} />}>
         <Route path="/siswa/*" element={<RoleHome />} />

@@ -42,33 +42,47 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen bg-slate-100 lg:grid-cols-[1fr_1fr]">
-      <section className="hidden flex-col justify-between bg-navy-900 p-12 text-white lg:flex">
+    <main className="relative isolate grid min-h-screen overflow-hidden bg-gradient-to-br from-orange-50 via-fuchsia-50 to-cyan-50 lg:grid-cols-[1fr_1fr]">
+      <div className="pointer-events-none absolute -left-28 top-20 h-72 w-72 rounded-full bg-orange-300/40 blur-3xl" />
+      <div className="pointer-events-none absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-cyan-300/40 blur-3xl lg:hidden" />
+      <section className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-violet-950 via-fuchsia-800 to-orange-500 p-12 text-white lg:flex xl:p-16">
+        <div className="pointer-events-none absolute -right-24 -top-20 h-80 w-80 rounded-full border-[38px] border-white/10" />
+        <div className="pointer-events-none absolute -bottom-36 -left-24 h-96 w-96 rounded-full bg-cyan-400/20 blur-2xl" />
+        <div className="pointer-events-none absolute right-16 top-1/3 h-32 w-32 rotate-12 rounded-[2rem] border border-white/20 bg-white/10 backdrop-blur-sm" />
         <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-white/10 p-3"><GraduationCap size={27} aria-hidden="true" /></div>
+          <div className="rounded-xl border border-white/20 bg-white/15 p-3 shadow-lg backdrop-blur-sm"><GraduationCap size={27} aria-hidden="true" /></div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.17em] text-blue-200">Ujian sekolah digital</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.17em] text-orange-100">Ujian sekolah digital</p>
             <p className="text-xl font-bold">RuangUjian CBT</p>
           </div>
         </div>
-        <div className="max-w-lg">
-          <p className="text-sm font-semibold text-blue-200">Lokal · Aman · Terstruktur</p>
+        <div className="relative max-w-xl">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-orange-100 backdrop-blur-sm">
+            <span className="h-2 w-2 rounded-full bg-lime-300 shadow-[0_0_12px_rgba(190,242,100,0.9)]" />
+            LOKAL · AMAN · TERSTRUKTUR
+          </span>
           <h1 className="mt-4 text-4xl font-bold leading-tight">Satu ruang untuk persiapan dan pelaksanaan ujian.</h1>
-          <p className="mt-5 leading-7 text-slate-300">
+          <p className="mt-5 max-w-lg leading-7 text-white/80">
             Masuk menggunakan akun yang telah disiapkan pada perangkat laboratorium sekolah.
           </p>
+          <div className="mt-8 flex flex-wrap gap-2 text-xs font-medium">
+            {['Bank soal', 'Jadwal ujian', 'Hasil belajar'].map((label) => (
+              <span key={label} className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-white/90 backdrop-blur-sm">{label}</span>
+            ))}
+          </div>
         </div>
-        <p className="text-sm text-slate-400">Data disimpan secara lokal pada browser perangkat.</p>
+        <p className="text-sm text-white/65">Data disimpan secara lokal pada browser perangkat.</p>
       </section>
 
-      <section className="flex items-center justify-center px-5 py-10 sm:px-10">
+      <section className="relative flex items-center justify-center px-5 py-10 sm:px-10">
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <div className="rounded-xl bg-navy-900 p-2.5 text-white"><GraduationCap size={24} aria-hidden="true" /></div>
+            <div className="rounded-xl bg-gradient-to-br from-violet-700 via-fuchsia-600 to-orange-500 p-2.5 text-white shadow-lg shadow-fuchsia-300/50"><GraduationCap size={24} aria-hidden="true" /></div>
             <span className="text-xl font-bold text-navy-950">RuangUjian CBT</span>
           </div>
-          <div className="rounded-2xl bg-white p-7 shadow-xl shadow-slate-200/70 sm:p-9">
-            <p className="text-sm font-semibold text-blue-800">Selamat datang</p>
+          <div className="overflow-hidden rounded-3xl border border-white/80 bg-white/90 p-7 shadow-2xl shadow-fuchsia-200/50 backdrop-blur-xl sm:p-9">
+            <div className="mb-6 h-1.5 w-20 rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400" />
+            <p className="text-sm font-bold text-fuchsia-700">SELAMAT DATANG</p>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-navy-950">Masuk ke akun Anda</h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">Gunakan nama pengguna dan kata sandi yang terdaftar.</p>
 
@@ -85,7 +99,7 @@ export default function LoginPage() {
                     required
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
-                    className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 outline-none transition focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-xl border border-slate-200 bg-white/80 py-3 pl-10 pr-3 outline-none transition placeholder:text-slate-400 focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-100"
                     placeholder="Nama pengguna"
                   />
                 </div>
@@ -102,7 +116,7 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 outline-none transition focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-xl border border-slate-200 bg-white/80 py-3 pl-10 pr-3 outline-none transition placeholder:text-slate-400 focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-100"
                     placeholder="Kata sandi"
                   />
                 </div>
@@ -115,13 +129,13 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full rounded-lg bg-navy-900 px-4 py-3 font-semibold text-white transition hover:bg-navy-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+                className="w-full rounded-xl bg-gradient-to-r from-violet-700 via-fuchsia-600 to-orange-500 px-4 py-3 font-semibold text-white shadow-lg shadow-fuchsia-300/40 transition hover:brightness-105 focus:outline-none focus:ring-4 focus:ring-fuchsia-200 disabled:cursor-wait disabled:opacity-60"
               >
                 {isSubmitting ? 'Memeriksa akun...' : 'Masuk'}
               </button>
             </form>
 
-            <div className="mt-6 rounded-lg bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">
+            <div className="mt-6 rounded-xl border border-orange-100 bg-gradient-to-r from-orange-50 via-fuchsia-50 to-cyan-50 px-4 py-3 text-xs leading-5 text-slate-600">
               Akun contoh: <strong>admin</strong> / <strong>admin123</strong>. Guru: <strong>guru1</strong> atau{' '}
               <strong>guru2</strong> / <strong>guru123</strong>.
             </div>

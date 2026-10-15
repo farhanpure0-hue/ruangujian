@@ -1,0 +1,76 @@
+import { useEffect, useState } from 'react'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { ProtectedRoute } from './components/ProtectedRoute.jsx'
+import RoleHome from './components/RoleHome.jsx'
+import { AuthProvider } from './context/AuthContext.jsx'
+import { useAuth } from './hooks/useAuth.js'
+import LoginPage from './pages/LoginPage.jsx'
+import { seedDatabase } from './db/seed.js'
+
+function RoleRedirect() {
+  const { user } = useAuth()
+  return <Navigate to={user ? `/${user.role}` : '/login'} replace />
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+        <Route path="/admin/*" element={<RoleHome />} />
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={['guru']} />}>
+        <Route path="/guru/*" element={<RoleHome />} />
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={['siswa']} />}>
+        <Route path="/siswa/*" element={<RoleHome />} />
+      </Route>
+      <Route path="/" element={<RoleRedirect />} />
+      <Route path="*" element={<RoleRedirect />} />
+    </Routes>
+  )
+}
+
+export default function App() {
+  const [startup, setStartup] = useState('loading')
+
+  useEffect(() => {
+    let active = true
+    seedDatabase()
+      .then(() => {
+        if (active) setStartup('ready')
+      })
+      .catch((error) => {
+        console.error('Gagal menyiapkan database CBT:', error)
+        if (active) setStartup(`error: ${error.message}`)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  if (startup === 'loading') {
+    return (
+      <main className="grid min-h-screen place-items-center bg-slate-100 px-5">
+        <p className="text-sm font-medium text-slate-600" role="status">Menyiapkan database lokal...</p>
+      </main>
+    )
+  }
+
+  if (startup.startsWith('error:')) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-slate-100 px-5">
+        <p className="max-w-xl rounded-xl border border-red-200 bg-white p-5 text-sm text-red-800" role="alert">
+          Database gagal disiapkan: {startup.slice(7)}
+        </p>
+      </main>
+    )
+  }
+
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
+  )
+}

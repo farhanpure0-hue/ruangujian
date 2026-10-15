@@ -96,6 +96,11 @@ export function AuthProvider({ children }) {
       return { success: false, message: 'NISN/nomor peserta dan kata sandi wajib diisi.' }
     }
 
+    const activityLock = await db.pengaturan.get('kunciAktivitas')
+    if (activityLock?.nilai?.terkunci) {
+      return { success: false, message: 'Akses ujian sedang dikunci oleh administrator. Hubungi proktor.' }
+    }
+
     const student = await db.siswa.where('nisn').equals(normalizedIdentifier).first()
       ?? await db.siswa.where('nomorPeserta').equals(normalizedIdentifier).first()
     if (!student || !student.aktif) {

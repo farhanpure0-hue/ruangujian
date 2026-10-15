@@ -9,6 +9,7 @@ import AdminLayout from './layouts/AdminLayout.jsx'
 import { ensureDefaultClasses } from './db/defaultClasses.js'
 import LoginPage from './pages/LoginPage.jsx'
 import StudentLoginPage from './pages/StudentLoginPage.jsx'
+import OperationsPage from './pages/admin/OperationsPage.jsx'
 import QuestionBankPage from './pages/admin/QuestionBankPage.jsx'
 import { seedDatabase } from './db/seed.js'
 
@@ -26,12 +27,14 @@ function AppRoutes() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<WorkspaceHome />} />
           <Route path="bank-soal" element={<QuestionBankPage />} />
+          <Route path="operasional/:section" element={<OperationsPage />} />
         </Route>
       </Route>
       <Route element={<ProtectedRoute allowedRoles={['guru']} />}>
         <Route path="/guru" element={<AdminLayout />}>
           <Route index element={<WorkspaceHome />} />
           <Route path="bank-soal" element={<QuestionBankPage />} />
+          <Route path="operasional/:section" element={<OperationsPage />} />
         </Route>
       </Route>
       <Route element={<ProtectedRoute allowedRoles={['siswa']} />}>

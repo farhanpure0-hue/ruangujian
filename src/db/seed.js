@@ -115,9 +115,9 @@ export async function seedDatabase() {
         aktif: true,
       })
       const kelasIds = await db.kelas.bulkAdd([
-        { tingkat: 'X', nama: 'X IPA 1', tahunAjaranId },
-        { tingkat: 'XI', nama: 'XI IPA 1', tahunAjaranId },
-        { tingkat: 'XII', nama: 'XII IPA 1', tahunAjaranId },
+        { tingkat: 'X', nama: 'X-1', tahunAjaranId },
+        { tingkat: 'XI', nama: 'XI-1', tahunAjaranId },
+        { tingkat: 'XII', nama: 'XII-1', tahunAjaranId },
       ], { allKeys: true })
       const mapelIds = await db.mapel.bulkAdd([
         { kode: 'MAT', nama: 'Matematika', deskripsi: 'Matematika wajib' },
@@ -135,7 +135,7 @@ export async function seedDatabase() {
           nomorPeserta: `CBT-2026-${String(number).padStart(3, '0')}`,
           nama: `Siswa Contoh ${String(number).padStart(2, '0')}`,
           kelasId: kelasIds[index % kelasIds.length],
-          rombel: ['X IPA 1', 'XI IPA 1', 'XII IPA 1'][index % 3],
+          rombel: ['X-1', 'XI-1', 'XII-1'][index % 3],
           aktif: true,
           passwordHash: siswaHash,
         }

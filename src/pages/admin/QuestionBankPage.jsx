@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { BookOpenCheck, Check, ChevronDown, CircleHelp, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { BookOpenCheck, Check, ChevronDown, CircleHelp, Download, FileSpreadsheet, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { db } from '../../db/db.js'
 import { useAuth } from '../../hooks/useAuth.js'
 
@@ -14,6 +14,10 @@ const QUESTION_TYPES = [
 ]
 const OPTION_LABELS = ['A', 'B', 'C', 'D', 'E']
 const TYPE_LABELS = Object.fromEntries(QUESTION_TYPES.map(({ value, label }) => [value, label]))
+const IMPORT_COLUMNS = [
+  'Mata Pelajaran', 'Kelas', 'Jenis Soal', 'Pertanyaan', 'Opsi A', 'Opsi B', 'Opsi C', 'Opsi D', 'Opsi E',
+  'Kunci Jawaban', 'Pernyataan', 'Pasangan', 'Jawaban Diterima', 'Rubrik', 'Kesulitan', 'Bobot', 'Pembahasan', 'Aktif',
+]
 
 const inputClass = 'mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-100'
 const labelClass = 'block text-sm font-medium text-slate-700'
@@ -68,6 +72,128 @@ function answerSummary(question) {
     return question.jawabanDiterima?.join(' / ') || 'Belum diatur'
   }
   return question.rubrik ? 'Dinilai manual · rubrik tersedia' : 'Dinilai manual'
+}
+
+function normalizeImportValue(value) {
+  return String(value ?? '').trim().toLocaleLowerCase('id').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+function splitImportList(value) {
+  return String(value ?? '').split(/[;,]/).map((item) => item.trim()).filter(Boolean)
+}
+
+function parseImportQuestion(row, rowNumber, subjects, classes, now) {
+  const fields = new Map(Object.entries(row).map(([key, value]) => [
+    normalizeImportValue(key).replace(/[^a-z0-9]/g, ''),
+    String(value ?? '').trim(),
+  ]))
+  const get = (...names) => {
+    for (const name of names) {
+      const value = fields.get(normalizeImportValue(name).replace(/[^a-z0-9]/g, ''))
+      if (value) return value
+    }
+    return ''
+  }
+  const fail = (message) => { throw new Error(`Baris ${rowNumber}: ${message}`) }
+  const pertanyaan = get('Pertanyaan', 'Soal')
+  if (!pertanyaan) fail('teks pertanyaan wajib diisi.')
+
+  const subjectName = get('Mata Pelajaran', 'Mapel')
+  const subject = subjects.find((item) => normalizeImportValue(item.nama) === normalizeImportValue(subjectName))
+  if (!subject) fail(`mata pelajaran "${subjectName || 'kosong'}" tidak ditemukan atau tidak dapat diakses.`)
+
+  const className = get('Kelas')
+  const schoolClass = classes.find((item) => normalizeImportValue(item.nama) === normalizeImportValue(className))
+  if (!schoolClass) fail(`kelas "${className || 'kosong'}" tidak ditemukan.`)
+
+  const rawType = normalizeImportValue(get('Jenis Soal', 'Jenis'))
+  const typeAliases = {
+    'pilihan ganda': 'pilihan_ganda',
+    'pilihan ganda kompleks': 'pilihan_ganda_kompleks',
+    'benar salah': 'benar_salah',
+    'menjodohkan': 'menjodohkan',
+    'isian singkat': 'isian_singkat',
+    'uraian': 'uraian',
+    'esai': 'uraian',
+  }
+  const type = QUESTION_TYPES.some(({ value }) => value === rawType) ? rawType : typeAliases[rawType]
+  if (!type) fail('jenis soal tidak valid. Gunakan salah satu jenis yang tercantum pada template.')
+
+  const question = {
+    mapelId: subject.id,
+    kelasId: schoolClass.id,
+    tipe: type,
+    tingkatKesulitan: normalizeImportValue(get('Kesulitan')) || 'sedang',
+    bobot: Number(get('Bobot') || 1),
+    pertanyaan,
+    pembahasan: get('Pembahasan'),
+    aktif: !['tidak', 'false', '0', 'nonaktif'].includes(normalizeImportValue(get('Aktif'))),
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  if (!['mudah', 'sedang', 'sulit'].includes(question.tingkatKesulitan)) fail('kesulitan harus mudah, sedang, atau sulit.')
+  if (!Number.isFinite(question.bobot) || question.bobot <= 0) fail('bobot harus berupa angka lebih besar dari 0.')
+
+  if (type === 'pilihan_ganda' || type === 'pilihan_ganda_kompleks') {
+    const labels = OPTION_LABELS.filter((label) => get(`Opsi ${label}`))
+    question.opsi = labels.map((label) => ({ label, teks: get(`Opsi ${label}`), gambar: null }))
+    question.jawabanBenar = splitImportList(get('Kunci Jawaban', 'Kunci')).map((label) => label.toUpperCase())
+    if (question.opsi.length < 2) fail('isi minimal dua opsi jawaban.')
+    if (question.jawabanBenar.some((label) => !labels.includes(label))) fail('kunci jawaban harus merujuk opsi yang tersedia (A-E).')
+    if (!question.jawabanBenar.length) fail('kunci jawaban wajib diisi.')
+    if (type === 'pilihan_ganda' && question.jawabanBenar.length !== 1) fail('pilihan ganda harus memiliki tepat satu kunci.')
+    question.aturanSkor = 'proporsional'
+  } else if (type === 'benar_salah') {
+    question.pernyataan = splitImportList(get('Pernyataan')).map((item) => {
+      const [teks, jawaban] = item.split('|').map((part) => part.trim())
+      const normalizedAnswer = normalizeImportValue(jawaban)
+      if (!teks || !['benar', 'salah', 'true', 'false'].includes(normalizedAnswer)) fail('pernyataan harus berformat "teks|Benar; teks|Salah".')
+      return { teks, benar: ['benar', 'true'].includes(normalizedAnswer) }
+    })
+    if (!question.pernyataan.length) fail('pernyataan wajib diisi.')
+  } else if (type === 'menjodohkan') {
+    question.pasangan = splitImportList(get('Pasangan')).map((item) => {
+      const [kiri, kanan] = item.split('|').map((part) => part.trim())
+      if (!kiri || !kanan) fail('pasangan harus berformat "istilah|pasangan; istilah|pasangan".')
+      return { kiri, kanan }
+    })
+    if (!question.pasangan.length) fail('pasangan wajib diisi.')
+  } else if (type === 'isian_singkat') {
+    question.jawabanDiterima = splitImportList(get('Jawaban Diterima', 'Kunci Jawaban'))
+    if (!question.jawabanDiterima.length) fail('minimal satu jawaban diterima wajib diisi.')
+  } else {
+    question.rubrik = get('Rubrik')
+  }
+
+  return question
+}
+
+async function downloadImportTemplate() {
+  const XLSX = await import('xlsx')
+  const example = {
+    'Mata Pelajaran': 'Matematika',
+    Kelas: 'X-1',
+    'Jenis Soal': 'pilihan_ganda',
+    Pertanyaan: 'Berapakah hasil 2 + 2?',
+    'Opsi A': '3',
+    'Opsi B': '4',
+    'Opsi C': '5',
+    'Opsi D': '6',
+    'Opsi E': '',
+    'Kunci Jawaban': 'B',
+    Pernyataan: '',
+    Pasangan: '',
+    'Jawaban Diterima': '',
+    Rubrik: '',
+    Kesulitan: 'mudah',
+    Bobot: 1,
+    Pembahasan: '2 + 2 = 4',
+    Aktif: 'Ya',
+  }
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([example], { header: IMPORT_COLUMNS }), 'Soal')
+  XLSX.writeFile(workbook, 'template-impor-soal-ruangujian.xlsx')
 }
 
 function QuestionEditor({ question, subjects, classes, onCancel, onSave }) {
@@ -355,6 +481,7 @@ function QuestionEditor({ question, subjects, classes, onCancel, onSave }) {
 
 export default function QuestionBankPage() {
   const { user } = useAuth()
+  const importInputRef = useRef(null)
   const [search, setSearch] = useState('')
   const [subjectFilter, setSubjectFilter] = useState('')
   const [classFilter, setClassFilter] = useState('')
@@ -417,6 +544,47 @@ export default function QuestionBankPage() {
     window.setTimeout(() => setNotice(''), 3500)
   }
 
+  async function importQuestions(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    try {
+      const XLSX = await import('xlsx')
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      if (!sheet) throw new Error('Lembar kerja tidak ditemukan di berkas.')
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false })
+        .filter((row) => Object.values(row).some((value) => String(value).trim()))
+      if (!rows.length) throw new Error('Tidak ada baris soal untuk diimpor.')
+
+      const now = new Date()
+      const questions = []
+      const errors = []
+      rows.forEach((row, index) => {
+        try {
+          questions.push(parseImportQuestion(row, index + 2, subjects, classes, now))
+        } catch (error) {
+          errors.push(error.message)
+        }
+      })
+      if (errors.length) {
+        const details = errors.slice(0, 5).join(' ')
+        const remainder = errors.length > 5 ? ` Dan ${errors.length - 5} kesalahan lainnya.` : ''
+        throw new Error(`${errors.length} baris perlu diperbaiki. ${details}${remainder}`)
+      }
+
+      await db.soal.bulkAdd(questions)
+      setPage(1)
+      setNotice(`${questions.length} soal berhasil diimpor.`)
+      window.setTimeout(() => setNotice(''), 5000)
+    } catch (error) {
+      console.error('Gagal mengimpor soal:', error)
+      setNotice(`Impor gagal: ${error.message}`)
+      window.setTimeout(() => setNotice(''), 8000)
+    }
+  }
+
   async function deleteQuestion(question) {
     if (!window.confirm('Hapus soal ini dari bank soal? Tindakan ini tidak dapat dibatalkan.')) return
     try {
@@ -448,16 +616,38 @@ export default function QuestionBankPage() {
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-navy-950">Bank Soal</h1>
           <p className="mt-2 text-sm text-slate-600">Simpan dan atur soal beserta kunci jawaban per mata pelajaran.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setEditor({ mode: 'create' })}
-          disabled={!subjects.length || !classes.length}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-navy-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Plus size={18} aria-hidden="true" />
-          Tambah soal
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <input ref={importInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={importQuestions} className="hidden" aria-label="Pilih berkas soal untuk diimpor" />
+          <button
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+            disabled={!subjects.length || !classes.length}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <FileSpreadsheet size={18} aria-hidden="true" />
+            Impor soal
+          </button>
+          <button
+            type="button"
+            onClick={downloadImportTemplate}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <Download size={18} aria-hidden="true" />
+            Template
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditor({ mode: 'create' })}
+            disabled={!subjects.length || !classes.length}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-navy-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus size={18} aria-hidden="true" />
+            Tambah soal
+          </button>
+        </div>
       </div>
+
+      <p className="-mt-3 text-xs text-slate-500">Impor berkas Excel atau CSV. Gunakan template agar kolom dan format jawaban sesuai.</p>
 
       {notice && (
         <p className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900" role="status">

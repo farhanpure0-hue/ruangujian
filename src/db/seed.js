@@ -4,28 +4,14 @@ import { hashPassword } from '../utils/hash.js'
 const questionTypes = ['pilihan_ganda', 'pilihan_ganda_kompleks', 'benar_salah', 'menjodohkan', 'isian_singkat', 'uraian']
 const optionLabels = ['A', 'B', 'C', 'D']
 const difficultyLevels = ['mudah', 'sedang', 'sulit']
-const DEFAULT_SUBJECTS = [
-  { kode: 'MAT', nama: 'Matematika', deskripsi: 'Matematika wajib' },
-  { kode: 'BIN', nama: 'Bahasa Indonesia', deskripsi: 'Bahasa Indonesia' },
-  { kode: 'SBY', nama: 'Seni Budaya' },
-  { kode: 'PKN', nama: 'Pendidikan Pancasila dan Kewarganegaraan (PKn)' },
-  { kode: 'PJOK', nama: 'Pendidikan Jasmani, Olahraga, dan Kesehatan (PJOK)' },
-  { kode: 'PAI', nama: 'Pendidikan Agama Islam' },
-  { kode: 'PAK', nama: 'Pendidikan Agama Kristen' },
-  { kode: 'PRA', nama: 'Prakarya' },
-  { kode: 'BIO', nama: 'Biologi' },
-  { kode: 'GEO', nama: 'Geografi' },
-  { kode: 'SOS', nama: 'Sosiologi' },
-  { kode: 'BINTL', nama: 'Bahasa Indonesia Tingkat Lanjut' },
-  { kode: 'SEJIND', nama: 'Sejarah Indonesia' },
-  { kode: 'SEJTL', nama: 'Sejarah Tingkat Lanjut' },
-  { kode: 'SEJPM', nama: 'Sejarah Peminatan' },
-  { kode: 'BIG', nama: 'Bahasa Inggris' },
-  { kode: 'BIGTL', nama: 'Bahasa Inggris Tingkat Lanjut' },
-  { kode: 'MATTL', nama: 'Matematika Tingkat Lanjut' },
-]
+const DEFAULT_CLASSES = ['X', 'XI', 'XII'].flatMap((tingkat) =>
+  Array.from({ length: 5 }, (_, index) => ({
+    tingkat,
+    nama: `${tingkat}-${index + 1}`,
+  })),
+)
 
-function createQuestion(index, mapelId, kelasId, mapelName) {
+function createQuestion(index, mapelId, kelasId) {
   const type = questionTypes[(index - 1) % questionTypes.length]
   const base = {
     mapelId,
@@ -33,7 +19,7 @@ function createQuestion(index, mapelId, kelasId, mapelName) {
     tipe: type,
     tingkatKesulitan: difficultyLevels[(index - 1) % difficultyLevels.length],
     bobot: type === 'uraian' ? 5 : 2,
-    pertanyaan: `Contoh soal ${index}: pilih jawaban yang paling tepat untuk materi ${mapelName} nomor ${index}.`,
+    pertanyaan: `Contoh soal ${index}: pilih jawaban yang paling tepat untuk materi ${mapelId === 1 ? 'Matematika' : 'Bahasa Indonesia'} nomor ${index}.`,
     pembahasan: `Pembahasan contoh untuk soal nomor ${index}.`,
     gambar: null,
     aktif: true,
@@ -81,23 +67,28 @@ function createQuestion(index, mapelId, kelasId, mapelName) {
   return { ...base, rubrik: 'Nilai berdasarkan ketepatan dan kelengkapan jawaban.' }
 }
 
-async function ensureDefaultSubjects() {
-  await db.transaction('rw', db.mapel, async () => {
-    const existingSubjects = await db.mapel
-      .where('kode')
-      .anyOf(DEFAULT_SUBJECTS.map(({ kode }) => kode))
+async function ensureDefaultClasses() {
+  await db.transaction('rw', [db.kelas, db.tahunAjaran], async () => {
+    const tahunAjaranAktif = (await db.tahunAjaran.toArray()).find(({ aktif }) => aktif)
+    if (!tahunAjaranAktif) {
+      throw new Error('Tidak dapat menambahkan kelas: tahun ajaran aktif belum tersedia.')
+    }
+
+    const existingClasses = await db.kelas
+      .where('tahunAjaranId')
+      .equals(tahunAjaranAktif.id)
       .toArray()
-    const existingCodes = new Set(existingSubjects.map(({ kode }) => kode))
-    const missingSubjects = DEFAULT_SUBJECTS.filter(({ kode }) => !existingCodes.has(kode))
-    if (missingSubjects.length) {
-      await db.mapel.bulkAdd(missingSubjects)
+    const existingNames = new Set(existingClasses.map(({ nama }) => nama))
+    const missingClasses = DEFAULT_CLASSES.filter(({ nama }) => !existingNames.has(nama))
+      .map((schoolClass) => ({ ...schoolClass, tahunAjaranId: tahunAjaranAktif.id }))
+
+    if (missingClasses.length) {
+      await db.kelas.bulkAdd(missingClasses)
     }
   })
 }
 
 export async function seedDatabase() {
-  await ensureDefaultSubjects()
-
   const [adminHash, guruHash, siswaHash] = await Promise.all([
     hashPassword('admin123'),
     hashPassword('guru123'),
@@ -128,11 +119,10 @@ export async function seedDatabase() {
         { tingkat: 'XI', nama: 'XI IPA 1', tahunAjaranId },
         { tingkat: 'XII', nama: 'XII IPA 1', tahunAjaranId },
       ], { allKeys: true })
-      const [matematika, bahasaIndonesia] = await Promise.all([
-        db.mapel.where('kode').equals('MAT').first(),
-        db.mapel.where('kode').equals('BIN').first(),
-      ])
-      const mapelIds = [matematika.id, bahasaIndonesia.id]
+      const mapelIds = await db.mapel.bulkAdd([
+        { kode: 'MAT', nama: 'Matematika', deskripsi: 'Matematika wajib' },
+        { kode: 'BIN', nama: 'Bahasa Indonesia', deskripsi: 'Bahasa Indonesia' },
+      ], { allKeys: true })
       const guruIds = await db.guru.bulkAdd([
         { nip: '198501012010011001', nama: 'Dewi Lestari, S.Pd.', mapelId: mapelIds[0], aktif: true },
         { nip: '198703152012021002', nama: 'Budi Santoso, S.Pd.', mapelId: mapelIds[1], aktif: true },
@@ -175,12 +165,7 @@ export async function seedDatabase() {
       await db.soal.bulkAdd(Array.from({ length: 30 }, (_, index) => {
         const mapelIndex = index % mapelIds.length
         const kelasIndex = index % kelasIds.length
-        return createQuestion(
-          index + 1,
-          mapelIds[mapelIndex],
-          kelasIds[kelasIndex],
-          mapelIndex === 0 ? matematika.nama : bahasaIndonesia.nama,
-        )
+        return createQuestion(index + 1, mapelIds[mapelIndex], kelasIds[kelasIndex])
       }))
 
       const examQuestions = await db.soal
@@ -222,6 +207,8 @@ export async function seedDatabase() {
       return true
     },
   )
+
+  await ensureDefaultClasses()
 
   return { seeded }
 }

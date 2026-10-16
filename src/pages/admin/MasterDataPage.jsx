@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Building2, Check, ImagePlus, Pencil, Plus, Save, Search, ShieldCheck, Trash2, UsersRound, X } from 'lucide-react'
+import { Building2, Check, Download, FileSpreadsheet, ImagePlus, Pencil, Plus, Save, Search, ShieldCheck, Trash2, UsersRound, X } from 'lucide-react'
 import { db } from '../../db/db.js'
 import { hashPassword } from '../../utils/hash.js'
 
@@ -40,6 +40,32 @@ function MasterTable({ headers, children, empty, colSpan }) {
       </div>
     </div>
   )
+}
+
+const normalizeImportHeader = (value) => String(value ?? '').trim().toLocaleLowerCase('id').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')
+
+async function downloadMasterTemplate(kind) {
+  const XLSX = await import('xlsx')
+  const staff = kind === 'staff'
+  const headers = staff
+    ? ['Nama', 'Nama Pengguna', 'Kata Sandi', 'Peran', 'NIP', 'Jabatan', 'Mata Pelajaran']
+    : ['Nama', 'NISN', 'Nomor Peserta', 'Kelas', 'Rombel', 'Kata Sandi']
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([headers]), staff ? 'Guru dan Operator' : 'Murid dan Peserta')
+  XLSX.writeFile(workbook, `template-impor-${staff ? 'guru-operator' : 'peserta'}-ruangujian.xlsx`)
+}
+
+async function readMasterImport(file) {
+  const XLSX = await import('xlsx')
+  const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
+  const sheet = workbook.Sheets[workbook.SheetNames[0]]
+  if (!sheet) throw new Error('Lembar kerja tidak ditemukan di berkas.')
+  return XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false }).filter((row) => Object.values(row).some((value) => String(value).trim()))
+}
+
+function importFields(row) {
+  const fields = new Map(Object.entries(row).map(([key, value]) => [normalizeImportHeader(key), String(value ?? '').trim()]))
+  return (...names) => names.map(normalizeImportHeader).map((name) => fields.get(name)).find(Boolean) ?? ''
 }
 
 function StaffEditor({ initial, subjects, onClose, onSave }) {
@@ -170,6 +196,7 @@ function StudentEditor({ initial, classes, onClose, onSave }) {
 }
 
 export default function MasterDataPage() {
+  const importInputRef = useRef(null)
   const [activeTab, setActiveTab] = useState('school')
   const [staffEditor, setStaffEditor] = useState(null)
   const [studentEditor, setStudentEditor] = useState(null)
@@ -177,6 +204,7 @@ export default function MasterDataPage() {
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [savingProfile, setSavingProfile] = useState(false)
+  const [importing, setImporting] = useState(false)
   const data = useLiveQuery(async () => {
     const [settings, staff, users, students, classes, subjects] = await Promise.all([
       db.pengaturan.get('identitasSekolah'),
@@ -331,6 +359,87 @@ export default function MasterDataPage() {
     showNotice('Data peserta dan akun login berhasil disimpan.')
   }
 
+  async function importMasterData(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    const kind = activeTab === 'staff' ? 'staff' : 'student'
+    setImporting(true)
+    try {
+      const rows = await readMasterImport(file)
+      if (!rows.length) throw new Error('Tidak ada baris data untuk diimpor.')
+      const parsed = rows.map((row, index) => {
+        const get = importFields(row)
+        const fail = (message) => { throw new Error(`Baris ${index + 2}: ${message}`) }
+        const nama = get('Nama', 'Nama Lengkap')
+        const password = get('Kata Sandi', 'Password')
+        if (!nama) fail('nama wajib diisi.')
+        if (!password || password.length < 6) fail('kata sandi wajib diisi minimal 6 karakter.')
+        if (kind === 'staff') {
+          const username = get('Nama Pengguna', 'Username')
+          const role = (get('Peran', 'Hak Akses') || 'guru').toLocaleLowerCase('id')
+          if (!username) fail('nama pengguna wajib diisi.')
+          if (username.toLowerCase() === 'admin') fail('nama pengguna admin tidak dapat digunakan.')
+          if (!['guru', 'pengawas', 'operator'].includes(role)) fail('peran harus Guru, Pengawas, atau Operator.')
+          const subjectName = get('Mata Pelajaran', 'Mapel')
+          const subject = data.subjects.find((item) => normalizeImportHeader(item.nama) === normalizeImportHeader(subjectName))
+          if (subjectName && !subject) fail(`mata pelajaran "${subjectName}" tidak ditemukan.`)
+          return { kind, nama, username, password, role: role === 'operator' ? 'pengawas' : role, nip: get('NIP', 'ID Pegawai'), jabatan: get('Jabatan'), mapelId: subject?.id ?? null }
+        }
+        const nisn = get('NISN')
+        const nomorPeserta = get('Nomor Peserta', 'No Peserta')
+        const className = get('Kelas')
+        const schoolClass = data.classes.find((item) => normalizeImportHeader(item.nama) === normalizeImportHeader(className))
+        if (!nisn) fail('NISN wajib diisi.')
+        if (!nomorPeserta) fail('nomor peserta wajib diisi.')
+        if (!schoolClass) fail(`kelas "${className || 'kosong'}" tidak ditemukan.`)
+        return { kind, nama, password, nisn, username: nisn, nomorPeserta, kelasId: schoolClass.id, rombel: get('Rombel') || schoolClass.nama }
+      })
+
+      const usernames = new Set()
+      const uniqueValues = new Set()
+      for (let index = 0; index < parsed.length; index += 1) {
+        const row = parsed[index]
+        const key = kind === 'staff' ? row.username.toLowerCase() : row.nisn
+        if (usernames.has(key)) throw new Error(`Baris ${index + 2}: nama pengguna/NISN duplikat di berkas.`)
+        usernames.add(key)
+        const unique = kind === 'staff' ? row.nip : row.nomorPeserta
+        if (kind === 'staff' && unique && uniqueValues.has(unique)) throw new Error(`Baris ${index + 2}: NIP/ID pegawai duplikat di berkas.`)
+        if (kind === 'student' && uniqueValues.has(unique)) throw new Error(`Baris ${index + 2}: nomor peserta duplikat di berkas.`)
+        if (unique) uniqueValues.add(unique)
+        if (await db.users.where('username').equals(row.username).first()) throw new Error(`Baris ${index + 2}: nama pengguna "${row.username}" sudah digunakan.`)
+        if (kind === 'staff' && row.nip && await db.guru.where('nip').equals(row.nip).first()) throw new Error(`Baris ${index + 2}: NIP/ID pegawai "${row.nip}" sudah terdaftar.`)
+        if (kind === 'student') {
+          if (await db.siswa.where('nisn').equals(row.nisn).first()) throw new Error(`Baris ${index + 2}: NISN "${row.nisn}" sudah terdaftar.`)
+          if (await db.siswa.where('nomorPeserta').equals(row.nomorPeserta).first()) throw new Error(`Baris ${index + 2}: nomor peserta "${row.nomorPeserta}" sudah terdaftar.`)
+        }
+        row.passwordHash = await hashPassword(row.password)
+      }
+
+      if (kind === 'staff') {
+        await db.transaction('rw', [db.guru, db.users], async () => {
+          for (const row of parsed) {
+            const guruId = await db.guru.add({ nip: row.nip || null, nama: row.nama, jabatan: row.jabatan, mapelId: row.mapelId, aktif: true })
+            await db.users.add({ username: row.username, passwordHash: row.passwordHash, nama: row.nama, role: row.role, guruId, aktif: true, jabatan: row.jabatan })
+          }
+        })
+      } else {
+        await db.transaction('rw', [db.siswa, db.users], async () => {
+          for (const row of parsed) {
+            const siswaId = await db.siswa.add({ nama: row.nama, nisn: row.nisn, nomorPeserta: row.nomorPeserta, kelasId: row.kelasId, rombel: row.rombel, aktif: true })
+            await db.users.add({ username: row.username, passwordHash: row.passwordHash, nama: row.nama, role: 'siswa', siswaId, aktif: true })
+          }
+        })
+      }
+      showNotice(`${parsed.length} data ${kind === 'staff' ? 'guru/operator' : 'murid/peserta'} beserta akun login berhasil diimpor.`)
+    } catch (importError) {
+      console.error('Gagal mengimpor data master:', importError)
+      showNotice(`Impor gagal: ${importError.message}`, true)
+    } finally {
+      setImporting(false)
+    }
+  }
+
   async function deactivateStudent(student) {
     if (!window.confirm(`Nonaktifkan peserta ${student.nama}? Data dan riwayat ujian akan tetap disimpan.`)) return
     try {
@@ -365,6 +474,7 @@ export default function MasterDataPage() {
 
       {notice && <p role="status" className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"><Check size={17} />{notice}</p>}
       {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>}
+      {activeTab !== 'school' && <input ref={importInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={importMasterData} className="hidden" aria-label="Pilih berkas data untuk diimpor" />}
 
       <div className="flex gap-2 overflow-x-auto rounded-xl bg-slate-200/70 p-1.5" role="tablist" aria-label="Bagian data master">
         {tabs.map(({ id, label, icon: Icon }) => (
@@ -380,8 +490,13 @@ export default function MasterDataPage() {
         <section className="space-y-4">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <p className="text-sm text-slate-600">Akun Guru dapat mengelola bank soal. Akun Pengawas hanya dapat membuka dasbor dan monitoring.</p>
-            <button type="button" onClick={() => setStaffEditor({})} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-navy-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-800"><Plus size={17} />Tambah guru/operator</button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={importing} onClick={() => importInputRef.current?.click()} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><FileSpreadsheet size={17} />{importing ? 'Mengimpor...' : 'Impor'}</button>
+              <button type="button" onClick={() => downloadMasterTemplate('staff')} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Download size={17} />Template</button>
+              <button type="button" onClick={() => setStaffEditor({})} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-navy-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-800"><Plus size={17} />Tambah guru/operator</button>
+            </div>
           </div>
+          <p className="text-xs text-slate-500">Impor Excel/CSV. Kolom wajib: Nama, Nama Pengguna, Kata Sandi; kolom opsional: Peran, NIP, Jabatan, Mata Pelajaran.</p>
           <SearchBox value={search} onChange={setSearch} placeholder="Cari nama, akun, jabatan, atau NIP..." />
           <MasterTable headers={['Nama / jabatan', 'Akun', 'NIP / mapel', 'Hak akses', 'Status', 'Aksi']} colSpan={6} empty="Belum ada data guru/operator.">
             {staffRows.map((staff) => (
@@ -402,8 +517,13 @@ export default function MasterDataPage() {
         <section className="space-y-4">
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <p className="text-sm text-slate-600">Data ini digunakan untuk daftar peserta dan login menggunakan NISN atau nomor peserta.</p>
-            <button type="button" onClick={() => setStudentEditor({})} disabled={!data.classes.length} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-navy-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-800 disabled:opacity-50"><Plus size={17} />Tambah peserta</button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={importing || !data.classes.length} onClick={() => importInputRef.current?.click()} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><FileSpreadsheet size={17} />{importing ? 'Mengimpor...' : 'Impor'}</button>
+              <button type="button" onClick={() => downloadMasterTemplate('students')} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Download size={17} />Template</button>
+              <button type="button" onClick={() => setStudentEditor({})} disabled={!data.classes.length} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-navy-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-navy-800 disabled:opacity-50"><Plus size={17} />Tambah peserta</button>
+            </div>
           </div>
+          <p className="text-xs text-slate-500">Impor Excel/CSV. Kolom wajib: Nama, NISN, Nomor Peserta, Kelas, Kata Sandi; Rombel bersifat opsional.</p>
           <SearchBox value={search} onChange={setSearch} placeholder="Cari nama, NISN, nomor peserta, atau rombel..." />
           <MasterTable headers={['Nama peserta', 'NISN', 'Nomor peserta', 'Kelas / rombel', 'Status', 'Aksi']} colSpan={6} empty="Belum ada data murid atau peserta.">
             {studentRows.map((student) => (

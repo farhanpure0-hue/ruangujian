@@ -81,6 +81,10 @@ export default function LoginPage() {
             <span className="text-xl font-bold text-navy-950">RuangUjian CBT</span>
           </div>
           <div className="overflow-hidden rounded-3xl border border-white/80 bg-white/90 p-7 shadow-2xl shadow-fuchsia-200/50 backdrop-blur-xl sm:p-9">
+            <div className="mb-6 flex items-center justify-center gap-5" aria-label="Logo sekolah dan pemerintah daerah">
+              <img src="/logo-propinsi.jpeg" alt="Logo Pemerintah Provinsi" className="h-16 w-16 object-contain sm:h-[4.5rem] sm:w-[4.5rem]" />
+              <img src="/logo-smansa-haltim.jpg" alt="Logo SMAN 1 Halmahera Timur" className="h-16 w-16 object-contain sm:h-[4.5rem] sm:w-[4.5rem]" />
+            </div>
             <div className="mb-6 h-1.5 w-20 rounded-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400" />
             <p className="text-sm font-bold text-fuchsia-700">SELAMAT DATANG</p>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-navy-950">Masuk ke akun Anda</h2>

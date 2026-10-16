@@ -241,7 +241,7 @@ export default function OperationsPage() {
         kunci: 'kunciAktivitas',
         nilai: { terkunci: locked, diubahPada: new Date().toISOString(), diubahOleh: user.username },
       })
-      alert(locked ? 'Akses login siswa dikunci pada perangkat ini.' : 'Kunci aktivitas siswa dibuka.')
+      alert(locked ? 'Akses login murid dikunci pada perangkat ini.' : 'Kunci aktivitas murid dibuka.')
     } catch (error) {
       console.error('Gagal mengubah kunci aktivitas:', error)
       alert(`Kunci aktivitas tidak dapat diubah: ${error.message}`)
@@ -251,7 +251,7 @@ export default function OperationsPage() {
   const exportResults = async () => {
     const rows = data.results.map((result) => ({
       Ujian: examById.get(result.ujianId)?.nama ?? `Ujian ${result.ujianId}`,
-      Peserta: studentNames.get(result.siswaId) ?? `Siswa ${result.siswaId}`,
+      Peserta: studentNames.get(result.siswaId) ?? `Murid ${result.siswaId}`,
       Nilai: result.nilai ?? '',
       Status: result.statusPenilaian ?? '',
     }))
@@ -372,7 +372,7 @@ export default function OperationsPage() {
               {rows.map((participant) => {
                 const exam = examById.get(participant.ujianId)
                 const count = data.violations.filter((item) => item.pesertaUjianId === participant.id).length
-                return <tr key={participant.id}><td className="px-4 py-3 font-medium">{studentNames.get(participant.siswaId) ?? `Siswa ${participant.siswaId}`}</td><td className="px-4 py-3">{exam?.nama ?? 'Ujian'}</td><td className="px-4 py-3 capitalize">{participant.status ?? 'belum login'}</td><td className="px-4 py-3">{participant.waktuMulai ? formatDate(participant.waktuMulai) : '—'}</td><td className="px-4 py-3">{count}</td></tr>
+                return <tr key={participant.id}><td className="px-4 py-3 font-medium">{studentNames.get(participant.siswaId) ?? `Murid ${participant.siswaId}`}</td><td className="px-4 py-3">{exam?.nama ?? 'Ujian'}</td><td className="px-4 py-3 capitalize">{participant.status ?? 'belum login'}</td><td className="px-4 py-3">{participant.waktuMulai ? formatDate(participant.waktuMulai) : '—'}</td><td className="px-4 py-3">{count}</td></tr>
               })}
             </Table>
           </>
@@ -383,10 +383,10 @@ export default function OperationsPage() {
         <>
           <div className="flex flex-wrap justify-end gap-2">
             <button type="button" onClick={exportResults} className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800"><Download size={16} />Unduh Excel</button>
-            <button type="button" onClick={() => printReport('Rekap Nilai Ujian', [['Ujian', 'Peserta', 'Nilai', 'Status'], ...data.results.map((result) => [examById.get(result.ujianId)?.nama ?? `Ujian ${result.ujianId}`, studentNames.get(result.siswaId) ?? `Siswa ${result.siswaId}`, result.nilai ?? '', result.statusPenilaian ?? ''])])} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"><Printer size={16} />Cetak / Simpan PDF</button>
+            <button type="button" onClick={() => printReport('Rekap Nilai Ujian', [['Ujian', 'Peserta', 'Nilai', 'Status'], ...data.results.map((result) => [examById.get(result.ujianId)?.nama ?? `Ujian ${result.ujianId}`, studentNames.get(result.siswaId) ?? `Murid ${result.siswaId}`, result.nilai ?? '', result.statusPenilaian ?? ''])])} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"><Printer size={16} />Cetak / Simpan PDF</button>
           </div>
           <Table headers={['Ujian', 'Peserta', 'Nilai', 'Status penilaian']}>
-            {data.results.map((result) => <tr key={result.id}><td className="px-4 py-3">{examById.get(result.ujianId)?.nama ?? `Ujian ${result.ujianId}`}</td><td className="px-4 py-3">{studentNames.get(result.siswaId) ?? `Siswa ${result.siswaId}`}</td><td className="px-4 py-3 font-semibold">{result.nilai ?? '—'}</td><td className="px-4 py-3">{result.statusPenilaian ?? 'Sementara'}</td></tr>)}
+            {data.results.map((result) => <tr key={result.id}><td className="px-4 py-3">{examById.get(result.ujianId)?.nama ?? `Ujian ${result.ujianId}`}</td><td className="px-4 py-3">{studentNames.get(result.siswaId) ?? `Murid ${result.siswaId}`}</td><td className="px-4 py-3 font-semibold">{result.nilai ?? '—'}</td><td className="px-4 py-3">{result.statusPenilaian ?? 'Sementara'}</td></tr>)}
           </Table>
         </>
       )}
@@ -410,13 +410,13 @@ export default function OperationsPage() {
 
       {section === 'manajemen-peran' && (
         <Table headers={['Pengguna', 'Nama', 'Peran', 'Status']}>
-          {data.users.map((account) => <tr key={account.id}><td className="px-4 py-3 font-mono">{account.username}</td><td className="px-4 py-3">{account.nama}</td><td className="px-4 py-3"><select aria-label={`Peran ${account.username}`} disabled={account.id === user.id} className="rounded-lg border border-slate-300 px-2 py-1.5" value={account.role} onChange={(event) => changeUser(account.id, { role: event.target.value })}><option value="admin">Admin</option><option value="guru">Guru</option><option value="pengawas">Pengawas</option><option value="siswa">Siswa</option></select></td><td className="px-4 py-3"><label className="inline-flex items-center gap-2"><input type="checkbox" checked={Boolean(account.aktif)} disabled={account.id === user.id} onChange={(event) => changeUser(account.id, { aktif: event.target.checked })} className="h-4 w-4 accent-blue-700" />{account.aktif ? 'Aktif' : 'Nonaktif'}</label></td></tr>)}
+          {data.users.map((account) => <tr key={account.id}><td className="px-4 py-3 font-mono">{account.username}</td><td className="px-4 py-3">{account.nama}</td><td className="px-4 py-3"><select aria-label={`Peran ${account.username}`} disabled={account.id === user.id} className="rounded-lg border border-slate-300 px-2 py-1.5" value={account.role} onChange={(event) => changeUser(account.id, { role: event.target.value })}><option value="admin">Admin</option><option value="guru">Guru</option><option value="pengawas">Pengawas</option><option value="siswa">Murid</option></select></td><td className="px-4 py-3"><label className="inline-flex items-center gap-2"><input type="checkbox" checked={Boolean(account.aktif)} disabled={account.id === user.id} onChange={(event) => changeUser(account.id, { aktif: event.target.checked })} className="h-4 w-4 accent-blue-700" />{account.aktif ? 'Aktif' : 'Nonaktif'}</label></td></tr>)}
         </Table>
       )}
 
       {section === 'kunci-aktivitas' && (() => {
         const locked = Boolean(settingMap.get('kunciAktivitas')?.terkunci)
-        return <section className={`${panelClass} max-w-3xl p-6`}><div className="flex items-start gap-4"><div className={`rounded-xl p-3 ${locked ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}><LockKeyhole size={24} /></div><div className="flex-1"><h2 className="text-lg font-bold text-slate-900">{locked ? 'Aktivitas siswa terkunci' : 'Aktivitas siswa terbuka'}</h2><p className="mt-2 text-sm leading-6 text-slate-600">Penguncian mencegah login baru dan akses ruang siswa pada browser/perangkat ini. Pengaturan tidak berlaku ke browser peserta lain sampai data disinkronkan dengan file paket.</p><button type="button" onClick={() => toggleActivityLock(!locked)} className={`mt-5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white ${locked ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-red-700 hover:bg-red-800'}`}>{locked ? 'Buka aktivitas siswa' : 'Kunci aktivitas siswa'}</button></div></div></section>
+        return <section className={`${panelClass} max-w-3xl p-6`}><div className="flex items-start gap-4"><div className={`rounded-xl p-3 ${locked ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}><LockKeyhole size={24} /></div><div className="flex-1"><h2 className="text-lg font-bold text-slate-900">{locked ? 'Aktivitas murid terkunci' : 'Aktivitas murid terbuka'}</h2><p className="mt-2 text-sm leading-6 text-slate-600">Penguncian mencegah login baru dan akses ruang murid pada browser/perangkat ini. Pengaturan tidak berlaku ke browser peserta lain sampai data disinkronkan dengan file paket.</p><button type="button" onClick={() => toggleActivityLock(!locked)} className={`mt-5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white ${locked ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-red-700 hover:bg-red-800'}`}>{locked ? 'Buka aktivitas murid' : 'Kunci aktivitas murid'}</button></div></div></section>
       })()}
     </div>
   )

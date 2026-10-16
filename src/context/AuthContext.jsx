@@ -109,7 +109,7 @@ export function AuthProvider({ children }) {
 
     const account = await db.users.where('siswaId').equals(student.id).first()
     if (!account || !account.aktif || account.role !== 'siswa') {
-      return { success: false, message: 'Akun siswa belum diaktifkan. Hubungi administrator sekolah.' }
+      return { success: false, message: 'Akun murid belum diaktifkan. Hubungi administrator sekolah.' }
     }
 
     const validPassword = await verifyPassword(password, account.passwordHash)

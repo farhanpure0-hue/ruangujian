@@ -133,7 +133,7 @@ export async function seedDatabase() {
         return {
           nisn: `009876${String(number).padStart(4, '0')}`,
           nomorPeserta: `CBT-2026-${String(number).padStart(3, '0')}`,
-          nama: `Siswa Contoh ${String(number).padStart(2, '0')}`,
+          nama: `Murid Contoh ${String(number).padStart(2, '0')}`,
           kelasId: kelasIds[index % kelasIds.length],
           rombel: ['X-1', 'XI-1', 'XII-1'][index % 3],
           aktif: true,

@@ -142,7 +142,7 @@ export default function LoginPage() {
             <p className="mt-5 text-center text-sm text-slate-600">
               Peserta ujian?{' '}
               <Link to="/siswa/login" className="font-semibold text-blue-800 hover:text-blue-950">
-                Login siswa
+                Login murid
               </Link>
             </p>
           </div>

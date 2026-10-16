@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth.js'
 const roleLabels = {
   admin: 'Administrator',
   guru: 'Guru',
-  siswa: 'Siswa',
+  siswa: 'Murid',
 }
 
 const roleDescriptions = {

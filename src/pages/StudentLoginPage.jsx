@@ -12,7 +12,7 @@ export default function StudentLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (isLoading) {
-    return <main className="grid min-h-screen place-items-center bg-slate-100">Memeriksa sesi siswa...</main>
+    return <main className="grid min-h-screen place-items-center bg-slate-100">Memeriksa sesi murid...</main>
   }
 
   if (user) return <Navigate to={`/${user.role}`} replace />
@@ -82,7 +82,7 @@ export default function StudentLoginPage() {
               <GraduationCap size={24} aria-hidden="true" />
             </div>
             <p className="text-sm font-bold text-fuchsia-700">PORTAL PESERTA</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight text-navy-950">Login Siswa</h2>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-navy-950">Login Murid</h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
               Masuk menggunakan NISN atau nomor peserta ujian.
             </p>
@@ -134,7 +134,7 @@ export default function StudentLoginPage() {
                 disabled={isSubmitting}
                 className="w-full rounded-xl bg-gradient-to-r from-violet-700 via-fuchsia-600 to-orange-500 px-4 py-3 font-semibold text-white shadow-lg shadow-fuchsia-300/40 transition hover:brightness-105 focus:outline-none focus:ring-4 focus:ring-fuchsia-200 disabled:cursor-wait disabled:opacity-60"
               >
-                {isSubmitting ? 'Memeriksa data siswa...' : 'Masuk ke akun siswa'}
+                {isSubmitting ? 'Memeriksa data murid...' : 'Masuk ke akun murid'}
               </button>
             </form>
 
